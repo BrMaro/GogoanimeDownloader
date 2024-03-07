@@ -33,10 +33,15 @@ driver = webdriver.Chrome(options=options)
 driver.get(domain)
 input("We are opening the website for you.\n Navigate to the main page of the anime and click 'Enter' key.\n\n;")
 url = driver.current_url
-driver.quit()
+# driver.quit()
 
-
-
+while True:
+    option = input("Option 1. Download the videos\nOption 2. Download the download links for porting to Free Download manager\n")
+    print(f"Option {option} selected\n")
+    if option == "2" or option == "1":
+        break
+    else:
+        print("Invalid Option. Try again\n")
 
 def get_ua():
     uastrings = [
@@ -97,7 +102,8 @@ for episode in range(first_episode, last_episode + 1):
     soup = get_html(episode_dict[episode])
     download_button = soup.find('li', class_='dowloads')
     download_link = download_button.find('a')
-    #print(download_link['href'])
+
+
 
     driver.get(download_link['href'])
     driver.implicitly_wait(10)
