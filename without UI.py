@@ -14,26 +14,19 @@ import keyboard
 
 domain = "https://gogoanime.dev"
 PROJECT_PATH = "C:\\Users\\Techron\\PycharmProjects\\GogoanimeDownloader"
-# options = Options()
-# options.add_argument("--headless")
-# # options.add_argument(f'user-agent={ua}')
-# options.add_argument("--window-size=1920,1080")
-# options.add_argument('--ignore-certificate-errors')
-# options.add_argument('--allow-running-insecure-content')
-# options.add_argument("--disable-extensions")
-# options.add_argument("--proxy-server='direct://'")
-# options.add_argument("--proxy-bypass-list=*")
-# options.add_argument("--start-maximized")
-# options.add_argument('--disable-gpu')
-# options.add_argument('--disable-dev-shm-usage')
-# options.add_argument('--no-sandbox')
+VIDEO_FILE_PATH = os.path.join(PROJECT_PATH,"Videos")
+LINKS_FILE_PATH = os.path.join(PROJECT_PATH,"Links")
+FILE_FORMAT = "mkv"
+
+
+
 options = Options()
 options.add_argument("user-data-dir=C:\\Users\\Techron\\AppData\\Local\\Google\\Chrome\\User Data")
 driver = webdriver.Chrome(options=options)
 driver.get(domain)
-input("We are opening the website for you.\n Navigate to the main page of the anime and click 'Enter' key.\n\n;")
+input("We are opening the website for you.\n Navigate to the main page of the anime and click 'Enter' key.\n\n")
 url = driver.current_url
-# driver.quit()
+driver.quit()
 
 while True:
     option = input("Option 1. Download the videos\nOption 2. Download the download links for porting to Free Download manager\n")
@@ -69,6 +62,40 @@ def get_html(link):
         print(f"Failed to retrieve the page. Status code: {response.status_code}")
 
 
+def create_folder(folder_name):
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        print(f"Folder '{folder_name}' created successfully.")
+    else:
+        print(f"Folder '{folder_name}' already exists. Skipping creation.")
+
+
+
+def download_video(vidUrl, filepath):
+    try:
+        response = requests.get(vidUrl, stream=True)
+        response.raise_for_status()
+
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 8192
+
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+        with open(filepath, 'wb') as file, tqdm(
+                desc=os.path.basename(filepath),
+                total=total_size,
+                unit='B',
+                unit_scale=True,
+                unit_divisor=1024,
+        ) as bar:
+            for chunk in response.iter_content(chunk_size=block_size):
+                if chunk:
+                    file.write(chunk)
+                    bar.update(len(chunk))
+    except requests.exceptions.RequestException as e:
+        print(f"Error: {e}")
+
+
 ua = get_ua()
 soup = get_html(url)
 title = soup.title
@@ -82,7 +109,6 @@ episode_number_list = [float(episode.text.replace("EP ", "")) for episode in epi
 
 # Create a dictionary mapping episode numbers to episode links
 episode_dict = {k: v for k, v in zip(episode_number_list, episode_links)}
-
 first_episode = 1
 last_episode = len(episode_dict)
 
@@ -97,20 +123,43 @@ while True:
     else:
         print("Invalid input. Please enter valid episode numbers.")
 
+
 driver = webdriver.Chrome(options=options)
-for episode in range(first_episode, last_episode + 1):
-    soup = get_html(episode_dict[episode])
-    download_button = soup.find('li', class_='dowloads')
-    download_link = download_button.find('a')
 
 
+def get_the_download_links():
+    anime_title = title.text.replace(" Watch on GogoAnime Official Website", "")
+    specific_anime_folder = os.path.join(VIDEO_FILE_PATH, anime_title)
+    create_folder(specific_anime_folder)
+    for episode in range(first_episode, last_episode + 1):
+        soup = get_html(episode_dict[episode])
+        download_button = soup.find('li', class_='dowloads')
+        download_link = download_button.find('a')
+        driver.get(download_link['href'])
+        driver.implicitly_wait(10)
+        time.sleep(5)
+        download_link2 = WebDriverWait(driver, 60).until(
+            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Download') and contains(text(), '480')]")))
+        with open(f'{title.text.replace(" Watch on GogoAnime Official Website","")}  links.txt', 'a') as file:
+            print(download_link2.get_attribute('href'))
+            file.write(download_link2.get_attribute('href'))
+            file.write('\n')
 
-    driver.get(download_link['href'])
-    driver.implicitly_wait(10)
-    time.sleep(5)
-    download_link2 = WebDriverWait(driver, 60).until(
-        EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Download') and contains(text(), '480')]")))
-    with open(f'{title.text.replace(" Watch on GogoAnime Official Website","")}  links.txt', 'a') as file:
+
+def download_the_episodes():
+    anime_title = title.text.replace(" Watch on GogoAnime Official Website","")
+    specific_anime_folder = os.path.join(VIDEO_FILE_PATH,anime_title)
+    create_folder(specific_anime_folder)
+    for episode in range(first_episode, last_episode + 1):
+        soup = get_html(episode_dict[episode])
+        download_button = soup.find('li', class_='dowloads')
+        download_link = download_button.find('a')
+        driver.get(download_link['href'])
+        driver.implicitly_wait(10)
+        time.sleep(5)
+        download_link2 = WebDriverWait(driver, 60).until(
+            EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'Download') and contains(text(), '480')]")))
         print(download_link2.get_attribute('href'))
-        file.write(download_link2.get_attribute('href'))
-        file.write('\n')
+        download_video(download_link2.get_attribute('href'),(os.path.join(specific_anime_folder,f"EP {episode}.{FILE_FORMAT}")))
+
+download_the_episodes()
