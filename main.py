@@ -16,7 +16,7 @@ import time
 #         if window != main_window:
 #             driver.close()
 driver = webdriver.Chrome()
-url = "https://gogoanime.network/"
+url = "https://gogoanime.dev/"
 driver.get(url)
 driver.implicitly_wait(10)
 
